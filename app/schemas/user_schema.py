@@ -1,12 +1,14 @@
-from pydantic import BaseModel, EmailStr
 from datetime import datetime
-from app.models.user import UserRole
+
+from pydantic import BaseModel, EmailStr
+
+from app.constans import UserRole
 
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
-    role: UserRole = UserRole.CLIENT
+    # role: UserRole = UserRole.CLIENT
 
 
 class UserLogin(BaseModel):
@@ -29,3 +31,8 @@ class UserResponse(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class HuaweiCredentialsUpdate(BaseModel):
+    huawei_username: str
+    huawei_password: str

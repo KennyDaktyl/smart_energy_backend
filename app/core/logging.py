@@ -1,6 +1,7 @@
 import logging
 import os
 from logging.handlers import RotatingFileHandler
+
 from app.core.config import settings
 
 LOG_DIR = settings.LOG_DIR

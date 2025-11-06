@@ -1,6 +1,6 @@
 from app.adapters.huawei_adapter import HuaweiAdapter
-from app.repositories.huawei_repository import HuaweiRepository
 from app.core.db import SessionLocal
+from app.repositories.huawei_repository import HuaweiRepository
 
 
 class HuaweiService:
@@ -12,13 +12,20 @@ class HuaweiService:
         devices = adapter.get_devices()
         db = SessionLocal()
         for dev in devices:
-            existing = db.query(self.repo.model).filter_by(serial_number=dev["esnCode"], user_id=user.id).first()
+            existing = (
+                db.query(self.repo.model)
+                .filter_by(serial_number=dev["esnCode"], user_id=user.id)
+                .first()
+            )
             if not existing:
-                self.repo.create(db, {
-                    "user_id": user.id,
-                    "serial_number": dev["esnCode"],
-                    "name": dev.get("devName"),
-                    "model": dev.get("devTypeName"),
-                    "capacity_kw": dev.get("nominalPower")
-                })
+                self.repo.create(
+                    db,
+                    {
+                        "user_id": user.id,
+                        "serial_number": dev["esnCode"],
+                        "name": dev.get("devName"),
+                        "model": dev.get("devTypeName"),
+                        "capacity_kw": dev.get("nominalPower"),
+                    },
+                )
         db.close()

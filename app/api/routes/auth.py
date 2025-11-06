@@ -1,17 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from datetime import timedelta
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
+from app.constans import UserRole
 from app.core.db import SessionLocal
-from app.models.user import User
-from app.schemas.user_schema import UserCreate, UserLogin, TokenResponse, UserResponse
 from app.core.security import (
-    get_password_hash,
-    verify_password,
     create_access_token,
     create_refresh_token,
     decode_token,
+    get_password_hash,
+    verify_password,
 )
+from app.models.user import User
+from app.schemas.user_schema import TokenResponse, UserCreate, UserLogin, UserResponse
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -34,7 +36,7 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
     new_user = User(
         email=user_in.email,
         password_hash=get_password_hash(user_in.password),
-        role=user_in.role,
+        role=UserRole.CLIENT,
     )
     db.add(new_user)
     db.commit()

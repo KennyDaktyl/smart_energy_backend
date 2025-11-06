@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, Enum
 from datetime import datetime, timezone
+
+from sqlalchemy import Boolean, Column, DateTime, Enum, Integer, String
 
 from app.constans import UserRole
 from app.core.db import Base

@@ -1,5 +1,7 @@
-import requests
 from datetime import datetime, timedelta
+
+import requests
+
 from app.core.config import settings
 
 

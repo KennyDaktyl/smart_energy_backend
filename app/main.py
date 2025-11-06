@@ -1,10 +1,11 @@
-from fastapi import FastAPI
-from contextlib import asynccontextmanager
 import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.api.routes import auth, user_routes
 from app.core.nats_client import NatsClient
-from app.api.routes import auth
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +45,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(user_routes.router, prefix="/api")
 
 
 @app.get("/health", tags=["System"])

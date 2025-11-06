@@ -1,7 +1,9 @@
 # app/core/nats_client.py
-from nats.aio.client import Client as NATS
-from app.core.config import settings
 import logging
+
+from nats.aio.client import Client as NATS
+
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 

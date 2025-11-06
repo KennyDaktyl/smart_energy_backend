@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     DB_PASSWORD: str = Field(..., env="DB_PASSWORD")
 
     FERNET_KEY: str = Field(..., env="FERNET_KEY")
+    JWT_SECRET: str = Field(..., env="JWT_SECRET")
 
     HUAWEI_API_URL: str = Field(
         "https://eu5.fusionsolar.huawei.com/thirdData", env="HUAWEI_API_URL"
