@@ -45,7 +45,6 @@ def get_raspberry_detail(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """Szczegóły pojedynczego Raspberry."""
     raspberry = raspberry_repo.get_for_user_by_uuid(db, raspberry_uuid, current_user.id)
 
     if not raspberry and current_user.role == UserRole.ADMIN:

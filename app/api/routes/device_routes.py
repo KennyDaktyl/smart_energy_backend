@@ -10,6 +10,7 @@ from app.core.dependencies import get_current_user
 from app.core.nats_client import NatsClient
 from app.core.roles import require_role
 from app.repositories.device_repository import DeviceRepository
+from app.schemas.device_schema import DeviceCreate, DeviceUpdate
 from app.services.device_service import DeviceService
 from app.models.user import User
 
@@ -37,7 +38,9 @@ def get_device(
 
 @router.post("/")
 def create_device(
-    payload, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
+    payload: DeviceCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     data = payload.model_dump()
     data["user_id"] = current_user.id
@@ -47,7 +50,7 @@ def create_device(
 @router.put("/{device_id}")
 def update_device(
     device_id: int,
-    payload,
+    payload: DeviceUpdate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -67,3 +70,17 @@ async def set_manual_state(
         raise HTTPException(400, "Missing 'state' field")
 
     return await device_service.set_manual_state(db, device_id, current_user, payload["state"])
+
+
+@router.get("/raspberry/{raspberry_id}")
+def list_devices_for_raspberry(
+    raspberry_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    device_repo = DeviceRepository()
+    return device_repo.get_for_raspberry(
+        db=db,
+        raspberry_id=raspberry_id,
+        user_id=current_user.id
+    )

@@ -2,15 +2,15 @@ services:
   backend:
     build: .
     container_name: smart_energy_backend
-    command: >
-      bash -c "
-        echo 'Checking database connectivity...';
-        alembic revision --autogenerate -m 'auto migration' || true;
-        echo 'Running migrations...';
-        alembic upgrade head;
-        echo 'Migrations complete. Starting server...';
-        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-      "
+    # command: >
+    #   bash -c "
+    #     echo 'Checking database connectivity...';
+    #     alembic revision --autogenerate -m 'auto migration' || true;
+    #     echo 'Running migrations...';
+    #     alembic upgrade head;
+    #     echo 'Migrations complete. Starting server...';
+    #     uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    #   "
     volumes:
       - .:/app
     ports:
@@ -34,14 +34,14 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  nats:
-    image: nats:2.10-alpine
-    container_name: smart_energy_nats
-    restart: always
-    ports:
-      - "4222:4222"
-      - "8222:8222"
-    command: ["-js"]
+  # nats:
+  #   image: nats:2.10-alpine
+  #   container_name: smart_energy_nats
+  #   restart: always
+  #   ports:
+  #     - "4222:4222"
+  #     - "8222:8222"
+  #   command: ["-js"]
 
   redis:
     image: redis:7
