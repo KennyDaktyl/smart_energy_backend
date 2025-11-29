@@ -13,7 +13,7 @@ class DeviceCreatedPayload(BaseModel):
     device_id: int
     device_number: int        # 1..3
     mode: str
-    threshold_w: Optional[float] = None
+    threshold_kw: Optional[float] = None
 
 
 class DeviceCreatedEvent(BaseEvent):
@@ -23,20 +23,16 @@ class DeviceCreatedEvent(BaseEvent):
 class DeviceUpdatedPayload(BaseModel):
     device_id: int
     mode: str
-    threshold_w: Optional[float] = None
+    threshold_kw: Optional[float] = None
 
 
 class DeviceUpdatedEvent(BaseEvent):
     payload: DeviceUpdatedPayload
 
 
-class DeviceDeletePayload(BaseModel):
-    device_id: int
-
-
 class PowerReadingPayload(BaseModel):
     inverter_id: int
-    power_w: float
+    power_kw: float
     device_ids: List[int]
 
 
@@ -52,3 +48,11 @@ class DeviceCommandPayload(BaseModel):
 
 class DeviceCommandEvent(BaseEvent):
     payload: DeviceCommandPayload
+
+
+class DeviceDeletePayload(BaseModel):
+    device_id: int
+    
+    
+class DeviceDeletedEvent(BaseEvent):
+    payload: DeviceDeletePayload

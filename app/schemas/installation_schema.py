@@ -25,5 +25,6 @@ class InstallationOut(InstallationBase):
     user_id: int
     inverters: List[InverterOut] = []
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }

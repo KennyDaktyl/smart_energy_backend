@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import requests
 
 from app.core.config import settings
+from app.core.exceptions import HuaweiRateLimitException
 
 logger = logging.getLogger(__name__)
 
@@ -111,7 +112,12 @@ class HuaweiAdapter:
             result = response.json()
 
         if not result.get("success", False):
-            msg = result.get("message") or f"Huawei API error code: {result.get('failCode')}"
+            fail_code = result.get("failCode")
+            msg = result.get("message") or f"Huawei API error {fail_code}"
+
+            if fail_code == 407 or msg == "ACCESS_FREQUENCY_IS_TOO_HIGH":
+                raise HuaweiRateLimitException("Huawei API rate limit exceeded (failCode 407)")
+
             raise Exception(f"Huawei API request failed: {msg}")
 
         self.token_expiration = datetime.now(timezone.utc) + timedelta(minutes=25)

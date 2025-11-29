@@ -19,6 +19,7 @@ services:
       - .env
     depends_on:
       - db
+      - redis
       # - nats
     restart: always
 
@@ -34,15 +35,6 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-
-  # nats:
-  #   image: nats:2.10-alpine
-  #   container_name: smart_energy_nats
-  #   restart: always
-  #   ports:
-  #     - "4222:4222"
-  #     - "8222:8222"
-  #   command: ["-js"]
 
   redis:
     image: redis:7

@@ -2,23 +2,20 @@
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from app.core.nats_client import NatsClient, NatsError
 from app.models.raspberry import Raspberry
 from app.models.user import User
 from app.repositories.device_repository import DeviceRepository
 from app.core.db import transactional_session
 from app.constans.events import EventType
-from app.core import nats_client
 from app.models.device import Device
-from app.schemas.event_shemas import DeviceCreatedEvent, DeviceCreatedPayload
+from app.schemas.event_shemas import DeviceCreatedEvent, DeviceCreatedPayload, DeviceUpdatedEvent, DeviceUpdatedPayload
 from app.schemas.device_schema import DeviceOut
-
-nats_client = NatsClient()
+from app.nats.publisher import NatsPublisher
 
 
 class DeviceService:
     
-    def __init__(self, repo: DeviceRepository, nats: NatsClient):
+    def __init__(self, repo: DeviceRepository, nats: NatsPublisher):
         self.repo = repo
         self.nats = nats
     
@@ -53,7 +50,7 @@ class DeviceService:
                 device_id=device.id,
                 device_number=device.device_number,
                 mode=device.mode.value,
-                threshold_w=device.threshold_w,
+                threshold_kw=device.threshold_kw,
             )
 
             event = DeviceCreatedEvent(
@@ -61,15 +58,15 @@ class DeviceService:
                 payload=payload
             )
             try:
-                ack = await nats_client.publish_and_wait_for_ack(
-                    subject=f"raspberry.{rpi_uuid}.events",
-                    ack_subject=f"raspberry.{rpi_uuid}.events.ack",
+                ack = await self.nats.publish_and_wait_for_ack(
+                    subject=f"device_communication.raspberry.{rpi_uuid}.events",
+                    ack_subject=f"device_communication.raspberry.{rpi_uuid}.events.ack",
                     message=event.model_dump(),
-                    match_id=device.id,
-                    timeout=10.0
+                    predicate=lambda p: p.get("device_id") == device.id,
+                    timeout=10.0,
                 )
-            except NatsError as e:
-                raise HTTPException(status_code=504, detail=str(e))
+            except Exception as e:
+                raise Exception(f"Failed to send device creation event to agent: {e}")
             
             if not ack.get("ok", False):
                 raise Exception("Agent returned negative ACK")
@@ -77,11 +74,83 @@ class DeviceService:
             return DeviceOut.model_validate(device)
 
 
-    def update_device(self, db: Session, device_id: int, user_id: int, data: dict):
-        device = self.repo.update_for_user(db, device_id, user_id, data)
+    async def update_device(self, db: Session, device_id: int, user_id: int, data: dict):
+        device = self.repo.get_for_user_by_id(db, device_id, user_id)
         if not device:
             raise HTTPException(404, "Device not found")
-        return device
+
+        raspberry = device.raspberry
+        rpi_uuid = raspberry.uuid
+
+        updated_device = self.repo.update_for_user(db, device_id, user_id, data)
+        if not updated_device:
+            raise HTTPException(404, "Device not found after update")
+
+        payload = DeviceUpdatedPayload(
+            device_id=updated_device.id,
+            mode=updated_device.mode.value,
+            threshold_kw=updated_device.threshold_kw
+        )
+
+        event = DeviceUpdatedEvent(
+            event_type=EventType.DEVICE_UPDATED,
+            payload=payload
+        )
+
+        subject = f"device_communication.raspberry.{rpi_uuid}.events"
+        ack_subject = f"device_communication.raspberry.{rpi_uuid}.events.ack"
+
+        try:
+            ack = await self.nats.publish_and_wait_for_ack(
+                subject=subject,
+                ack_subject=ack_subject,
+                message=event.model_dump(),
+                predicate=lambda p: p.get("device_id") == updated_device.id,
+                timeout=10.0
+            )
+        except Exception as e:
+            raise HTTPException(504, f"Raspberry not responding: {str(e)}")
+
+        if not ack.get("ok"):
+            raise HTTPException(500, "Raspberry failed to process update")
+
+        return updated_device
+
+    
+    async def delete_device(self, db: Session, device_id: int, current_user: User):
+        device: Device = self.get_device(db, device_id, current_user)
+
+        raspberry: Raspberry = device.raspberry
+        rpi_uuid = raspberry.uuid
+
+        subject = f"device_communication.raspberry.{rpi_uuid}.events"
+        ack_subject = f"device_communication.raspberry.{rpi_uuid}.events.ack"
+
+        message = {
+            "event_type": EventType.DEVICE_DELETED,
+            "payload": {
+                "device_id": device.id
+            }
+        }
+
+        try:
+            ack = await self.nats.publish_and_wait_for_ack(
+                subject=subject,
+                ack_subject=ack_subject,
+                message=message,
+                predicate=lambda p: p.get("device_id") == device.id,
+                timeout=10.0
+            )
+        except Exception as e:
+            raise HTTPException(504, f"Raspberry not responding: {str(e)}")
+
+        if not ack.get("ok"):
+            raise HTTPException(500, "Raspberry failed to delete device")
+
+        self.repo.delete(db, device.id)
+
+        return True
+
 
     async def set_manual_state(self, db: Session, device_id: int, current_user: User, state: int):
         device = self.repo.get_for_user_by_id(db, device_id, current_user.id)
@@ -91,8 +160,8 @@ class DeviceService:
         raspberry: Raspberry = device.raspberry
         serial = raspberry.uuid
 
-        subject = f"raspberry.{serial}.events"
-        ack_subject = f"raspberry.{serial}.events.ack"
+        subject = f"device_communication.raspberry.{serial}.events"
+        ack_subject = f"device_communication.raspberry.{serial}.events.ack"
 
         message = {
             "event_type": "DEVICE_COMMAND",
@@ -108,16 +177,16 @@ class DeviceService:
                 subject=subject,
                 ack_subject=ack_subject,
                 message=message,
-                match_id=device.id,
-                timeout=3.0,
+                predicate=lambda p: p.get("device_id") == device.id,
+                timeout=4.0
             )
-        except NatsError as e:
+        except Exception as e:
             raise HTTPException(status_code=504, detail=str(e))
 
         if not ack.get("ok"):
             raise HTTPException(500, "Raspberry failed to set state")
 
-        updated = self.repo.update_for_user(db, device_id, current_user.id, {"manual_state": state})
+        updated_device = self.repo.update_for_user(db, device_id, current_user.id, {"manual_state": state})
 
-        return {"device_id": device.id, "manual_state": state, "ack": ack}
+        return {"device_id": updated_device.id, "manual_state": state, "ack": ack}
 

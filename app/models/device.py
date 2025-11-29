@@ -20,7 +20,7 @@ class Device(Base):
     raspberry_id = Column(Integer, ForeignKey("raspberries.id", ondelete="CASCADE"))
 
     device_number = Column(Integer, nullable=False)
-    rated_power_w = Column(Numeric, nullable=True)
+    rated_power_kw = Column(Numeric, nullable=True)
 
     # 🔧 Enum trybu pracy
     mode = Column(
@@ -29,7 +29,7 @@ class Device(Base):
         nullable=False,
     )
 
-    threshold_w = Column(Numeric, nullable=True)
+    threshold_kw = Column(Numeric, nullable=True)
     hysteresis_w = Column(Numeric, default=100)
 
     schedule = Column(JSON, nullable=True)

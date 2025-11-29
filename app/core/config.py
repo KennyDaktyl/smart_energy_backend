@@ -23,7 +23,6 @@ class Settings(BaseSettings):
 
     NATS_URL: str = Field("nats://localhost:4222", env="NATS_URL")
 
-    # --- WDB (Web Debugger) ---
     WDB_SOCKET_SERVER: str | None = Field(
         default=None, description="Host (Docker container) where wdb server runs"
     )
@@ -31,7 +30,7 @@ class Settings(BaseSettings):
     WDB_WEB_PORT: int | None = Field(default=1984)
     WDB_WEB_SERVER: str | None = Field(default="http://localhost")
 
-    GET_PRODUCTION_INTERVAL_MINUTES: int = Field(300, env="GET_PRODUCTION_INTERVAL_MINUTES")
+    GET_PRODUCTION_INTERVAL_MINUTES: int = Field(3, env="GET_PRODUCTION_INTERVAL_MINUTES")
 
     @property
     def DATABASE_URL(self) -> str:
@@ -40,9 +39,12 @@ class Settings(BaseSettings):
             f"@{self.POSTGRES_HOST}:5432/{self.POSTGRES_NAME}"
         )
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
+    model_config = {
+        "extra": "ignore",
+        "env_file": ".env",
+        "env_file_encoding": "utf-8",
+        "from_attributes": True
+    }
 
 
 settings = Settings()

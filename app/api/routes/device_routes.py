@@ -1,22 +1,23 @@
 # app/api/routes/device_routes.py
 
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 
 from app.constans.role import UserRole
 from app.core.db import get_db
 from app.core.dependencies import get_current_user
-from app.core.nats_client import NatsClient
+from app.nats.client import NatsClient
 from app.core.roles import require_role
 from app.repositories.device_repository import DeviceRepository
 from app.schemas.device_schema import DeviceCreate, DeviceUpdate
 from app.services.device_service import DeviceService
 from app.models.user import User
+from app.nats.publisher import NatsPublisher
 
 router = APIRouter(prefix="/devices", tags=["Devices"])
 
-device_service = DeviceService(DeviceRepository(), NatsClient())
+device_service = DeviceService(DeviceRepository(), NatsPublisher(NatsClient()))
 
 
 @router.get("/", dependencies=[Depends(require_role(UserRole.ADMIN))])
@@ -48,7 +49,7 @@ async def create_device(
 
 
 @router.put("/{device_id}")
-def update_device(
+async def update_device(
     device_id: int,
     payload: DeviceUpdate,
     db: Session = Depends(get_db),
@@ -56,7 +57,17 @@ def update_device(
 ):
     data = payload.model_dump(exclude_unset=True)
     data["last_update"] = datetime.now(timezone.utc)
-    return device_service.update_device(db, device_id, current_user.id, data)
+    return await device_service.update_device(db, device_id, current_user.id, data)
+
+
+@router.delete("/{device_id}", status_code=204)
+async def delete_device(
+    device_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    await device_service.delete_device(db, device_id, current_user)
+    return Response(status_code=204)
 
 
 @router.patch("/{device_id}/manual_state")

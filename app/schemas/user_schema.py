@@ -47,5 +47,6 @@ class UserInstallationsResponse(BaseModel):
     created_at: datetime
     installations: List[InstallationOut] = []
 
-    class Config:
-        orm_mode = True
+    model_config = {
+        "from_attributes": True
+    }
