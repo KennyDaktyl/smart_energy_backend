@@ -1,9 +1,9 @@
 from typing import Optional
 
-from pydantic import BaseModel
+from app.schemas.base import APIModel, ORMModel
 
 
-class DeviceScheduleBase(BaseModel):
+class DeviceScheduleBase(APIModel):
     day_of_week: str
     start_time: str
     end_time: str
@@ -14,15 +14,13 @@ class DeviceScheduleCreate(DeviceScheduleBase):
     device_id: int
 
 
-class DeviceScheduleUpdate(BaseModel):
+class DeviceScheduleUpdate(APIModel):
     day_of_week: Optional[str] = None
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     enabled: Optional[bool] = None
 
 
-class DeviceScheduleOut(DeviceScheduleBase):
+class DeviceScheduleOut(DeviceScheduleBase, ORMModel):
     id: int
     device_id: int
-
-    model_config = {"from_attributes": True}

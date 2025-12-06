@@ -2,12 +2,13 @@ from datetime import datetime
 from typing import Any, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from app.constans.device_mode import DeviceMode
+from app.schemas.base import APIModel, ORMModel
 
 
-class DeviceBase(BaseModel):
+class DeviceBase(APIModel):
     name: str = Field(..., description="Nazwa urządzenia")
     device_number: Optional[int] = Field(
         None, description="Numer pinu GPIO (ustalany automatycznie)"
@@ -31,12 +32,10 @@ class DeviceUpdate(DeviceBase):
     user_id: Optional[int] = None
 
 
-class DeviceOut(DeviceBase):
+class DeviceOut(DeviceBase, ORMModel):
     id: int
     uuid: UUID
     user_id: Optional[int]
     raspberry_id: Optional[int]
     is_on: bool
     last_update: datetime
-
-    model_config = {"from_attributes": True}

@@ -2,7 +2,8 @@
 import logging
 import os
 import sys
-from logging.handlers import RotatingFileHandler
+from datetime import datetime, timezone
+from logging.handlers import TimedRotatingFileHandler
 
 from app.core.config import settings
 
@@ -15,18 +16,23 @@ DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 formatter = logging.Formatter(LOG_FORMAT, datefmt=DATE_FORMAT)
 
-file_handler = RotatingFileHandler(
-    LOG_FILE_PATH, maxBytes=10_000_000, backupCount=5, encoding="utf-8"
+file_handler = TimedRotatingFileHandler(
+    LOG_FILE_PATH,
+    when="midnight",
+    interval=1,
+    backupCount=7,
+    encoding="utf-8",
 )
-file_handler.setLevel(logging.DEBUG)
+file_handler.suffix = "%Y-%m-%d"
+file_handler.setLevel(logging.INFO)
 file_handler.setFormatter(formatter)
 
 console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.DEBUG)
+console_handler.setLevel(logging.INFO)
 console_handler.setFormatter(formatter)
 
 root_logger = logging.getLogger()
-root_logger.setLevel(logging.DEBUG)
+root_logger.setLevel(logging.INFO)
 
 for handler in list(root_logger.handlers):
     root_logger.removeHandler(handler)
@@ -41,3 +47,6 @@ for name in ["uvicorn", "uvicorn.error", "uvicorn.access"]:
     log.propagate = False
 
 root_logger.info(f"✅ Logging initialized. Writing logs to: {LOG_FILE_PATH}")
+
+# Log startup timestamp to help trace rollover boundaries
+root_logger.info(f"Logger start time UTC: {datetime.now(timezone.utc).isoformat()}")

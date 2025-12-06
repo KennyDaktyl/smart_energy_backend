@@ -29,3 +29,5 @@ class BaseRepository(Generic[ModelType]):
         if obj:
             db.delete(obj)
             db.commit()
+            return True
+        return False

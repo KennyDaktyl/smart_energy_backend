@@ -1,25 +1,41 @@
 from datetime import datetime, timezone
+from typing import List
 
 from sqlalchemy.orm import Session
 
-from app.models import DeviceEvent
+from app.models.device_event import DeviceEvent
 
 
 class DeviceEventRepository:
-    def __init__(self, db: Session):
-        self.db = db
-
-    def create_event(
-        self, device_id: int, active_power: float, event_name="production_update", state="active"
-    ):
+    def create_state_event(
+        self,
+        db: Session,
+        *,
+        device_id: int,
+        pin_state: bool,
+        trigger_reason: str | None = None,
+        power_kw: float | None = None,
+        timestamp: datetime | None = None,
+    ) -> DeviceEvent:
+        # Persist a state-change event emitted by agent telemetry
         event = DeviceEvent(
-            event_name=event_name,
             device_id=device_id,
-            state=state,
-            active_power=active_power,
-            timestamp=datetime.now(timezone.utc),
+            state="ON" if pin_state else "OFF",
+            pin_state=pin_state,
+            trigger_reason=trigger_reason,
+            power_kw=power_kw,
+            timestamp=timestamp or datetime.now(timezone.utc),
         )
-        self.db.add(event)
-        self.db.commit()
-        self.db.refresh(event)
+        db.add(event)
+        db.commit()
+        db.refresh(event)
         return event
+
+    def list_for_device(self, db: Session, device_id: int, limit: int = 200) -> List[DeviceEvent]:
+        return (
+            db.query(DeviceEvent)
+            .filter(DeviceEvent.device_id == device_id)
+            .order_by(DeviceEvent.timestamp.desc())
+            .limit(limit)
+            .all()
+        )

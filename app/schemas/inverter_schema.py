@@ -1,28 +1,25 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from app.schemas.raspberry_schema import RaspberryFullOut
+from app.schemas.base import APIModel, ORMModel
 
 
-class InstallationLite(BaseModel):
+class InstallationLite(ORMModel):
     id: int
     name: str
 
-    model_config = {"from_attributes": True}
 
-
-class InverterLite(BaseModel):
+class InverterLite(ORMModel):
     id: int
     name: str | None
     serial_number: str
     installation: InstallationLite | None = None
 
-    model_config = {"from_attributes": True}
 
-
-class InverterBase(BaseModel):
+class InverterBase(APIModel):
     name: Optional[str] = Field(None, description="Nazwa inwertera (Huawei devName)")
     serial_number: str = Field(..., description="Numer seryjny inwertera (esnCode)")
     model: Optional[str] = Field(None, description="Model urządzenia (invType / model)")
@@ -36,7 +33,7 @@ class InverterCreate(InverterBase):
     installation_id: int
 
 
-class InverterUpdate(BaseModel):
+class InverterUpdate(APIModel):
     name: Optional[str] = None
     model: Optional[str] = None
     capacity_kw: Optional[float] = None
@@ -45,10 +42,8 @@ class InverterUpdate(BaseModel):
     longitude: Optional[float] = None
 
 
-class InverterOut(InverterBase):
+class InverterOut(InverterBase, ORMModel):
     id: int
     installation_id: int
     last_updated: datetime
     raspberries: list[RaspberryFullOut]
-
-    model_config = {"from_attributes": True}

@@ -18,7 +18,7 @@ class UserRepository(BaseRepository[User]):
     def get_by_email(self, db: Session, email: str) -> Optional[User]:
         return db.query(User).filter(User.email == email).first()
 
-    def get_user_installations_detials(self, db: Session, user_id: int) -> Optional[User]:
+    def get_user_installations_details(self, db: Session, user_id: int) -> Optional[User]:
         return (
             db.query(User)
             .options(

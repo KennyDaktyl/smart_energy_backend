@@ -10,9 +10,9 @@ from fastapi_cache import FastAPICache
 from fastapi_cache.backends.redis import RedisBackend
 from redis import asyncio as aioredis
 
-from app.api.routes import (auth, device_routes, device_schedule_routes, huawei_routes,
-                            installation_routes, inverter_power_routes, inverter_routes,
-                            raspberry_routes, user_routes)
+from app.api.routes import (auth, device_event_routes, device_routes, device_schedule_routes,
+                            huawei_routes, installation_routes, inverter_power_routes,
+                            inverter_routes, raspberry_routes, user_routes)
 from app.core.config import settings
 from app.core.logging import root_logger
 from app.nats.module import nats_module
@@ -92,6 +92,7 @@ app.include_router(inverter_power_routes.router, prefix="/api")
 app.include_router(raspberry_routes.router, prefix="/api")
 app.include_router(device_routes.router, prefix="/api")
 app.include_router(device_schedule_routes.router, prefix="/api")
+app.include_router(device_event_routes.router, prefix="/api")
 
 
 @app.get("/health", tags=["System"])

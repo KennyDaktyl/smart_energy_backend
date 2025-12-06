@@ -1,6 +1,7 @@
 # app/workers/inverter_worker.py
 import asyncio
 import logging
+from datetime import datetime, timezone
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
@@ -9,7 +10,7 @@ from app.adapters.adapter_cache import get_adapter_for_user
 from app.core.config import settings
 from app.core.db import SessionLocal
 from app.core.exceptions import HuaweiRateLimitException
-from app.events.inverter_event import InverterEvent
+from app.events.inverter_event import InverterEvent, InverterEventPayload
 from app.nats.module import nats_module
 from app.repositories.inverter_power_record_repository import InverterPowerRepository
 from app.repositories.user_repository import UserRepository
@@ -18,15 +19,16 @@ logger = logging.getLogger(__name__)
 scheduler = BackgroundScheduler()
 
 
-async def publish_inverter_event(event: InverterEvent):
-    subject = f"device_communication.inverter.{event.serial_number}.production.update"
+async def publish_inverter_event(payload: InverterEventPayload):
+    subject = f"device_communication.inverter.{payload.serial_number}.production.update"
+    event = InverterEvent(payload=payload)
 
     try:
-        await nats_module.publisher.publish(subject, event.model_dump(mode="json"))
+        await nats_module.events.publish_event(subject, event=event)
         logger.info(f"NATS publish → {subject}: {event.model_dump(mode='json')}")
 
     except Exception as e:
-        logger.error(f"Failed to publish inverter event ({event.serial_number}): {e}")
+        logger.error(f"Failed to publish inverter event ({event.payload.serial_number}): {e}")
 
 
 async def fetch_inverter_production_async():
@@ -65,6 +67,7 @@ async def fetch_inverter_production_async():
 
                     serial = inverter.serial_number
                     inverter_id = inverter.id
+                    repo = InverterPowerRepository(db)
 
                     logger.info(
                         f"[Worker] Processing inverter {serial} (ID={inverter_id}) "
@@ -77,15 +80,29 @@ async def fetch_inverter_production_async():
 
                     except HuaweiRateLimitException as e:
                         logger.warning(f"[Worker] Huawei rate limit for inverter {serial}: {e}")
+                        change_time = datetime.now(timezone.utc)
+                        latest = repo.get_latest_for_inverter(inverter_id)
 
-                        event = InverterEvent(
-                            inverter_id=inverter_id,
-                            serial_number=serial,
-                            active_power=None,
-                            status="failed",
-                            error_message="Huawei API rate limit exceeded",
-                        )
-                        await publish_inverter_event(event)
+                        if latest and latest.active_power is None:
+                            logger.info(
+                                f"[Worker] Skipping duplicate None power for inverter {serial}"
+                            )
+                        else:
+                            if latest and latest.active_power is not None:
+                                repo.create_record(
+                                    inverter_id, float(latest.active_power), timestamp=change_time
+                                )
+                            repo.create_record(inverter_id, None, timestamp=change_time)
+
+                            payload = InverterEventPayload(
+                                inverter_id=inverter_id,
+                                serial_number=serial,
+                                active_power=None,
+                                status="failed",
+                                error_message="Huawei API rate limit exceeded",
+                                timestamp=change_time,
+                            )
+                            await publish_inverter_event(payload)
 
                         await asyncio.sleep(1.2)
                         continue
@@ -94,33 +111,64 @@ async def fetch_inverter_production_async():
                         logger.exception(
                             f"[Worker] Failed to fetch production data for inverter {serial}: {e}"
                         )
+                        change_time = datetime.now(timezone.utc)
+                        latest = repo.get_latest_for_inverter(inverter_id)
 
-                        event = InverterEvent(
-                            inverter_id=inverter_id,
-                            serial_number=serial,
-                            active_power=None,
-                            status="failed",
-                            error_message=str(e),
-                        )
-                        await publish_inverter_event(event)
+                        if latest and latest.active_power is None:
+                            logger.info(
+                                f"[Worker] Skipping duplicate None power for inverter {serial}"
+                            )
+                        else:
+                            if latest and latest.active_power is not None:
+                                repo.create_record(
+                                    inverter_id, float(latest.active_power), timestamp=change_time
+                                )
+                            repo.create_record(inverter_id, None, timestamp=change_time)
+
+                            payload = InverterEventPayload(
+                                inverter_id=inverter_id,
+                                serial_number=serial,
+                                active_power=None,
+                                status="failed",
+                                error_message=str(e),
+                                timestamp=change_time,
+                            )
+                        await publish_inverter_event(payload)
                         continue
 
                     active_power = production_data[0].get("dataItemMap", {}).get("active_power")
                     if active_power is None:
                         msg = f"Inverter {serial} returned no 'active_power'"
                         logger.warning(f"[Worker] {msg}")
+                        change_time = datetime.now(timezone.utc)
+                        latest = repo.get_latest_for_inverter(inverter_id)
 
-                        event = InverterEvent(
-                            inverter_id=inverter_id,
-                            serial_number=serial,
-                            active_power=None,
-                            status="failed",
-                            error_message=msg,
-                        )
-                        await publish_inverter_event(event)
+                        if latest and latest.active_power is None:
+                            logger.info(
+                                f"[Worker] Skipping duplicate None power for inverter {serial}"
+                            )
+                        else:
+                            if latest and latest.active_power is not None:
+                                repo.create_record(
+                                    inverter_id, float(latest.active_power), timestamp=change_time
+                                )
+                            repo.create_record(inverter_id, None, timestamp=change_time)
+
+                            payload = InverterEventPayload(
+                                inverter_id=inverter_id,
+                                serial_number=serial,
+                                active_power=None,
+                                status="failed",
+                                error_message=msg,
+                                timestamp=change_time,
+                            )
+                            await publish_inverter_event(payload)
+                            logger.error(
+                                f"[Worker] Persisted None active_power for inverter {serial} at {change_time.isoformat()} "
+                                f"reason={msg}"
+                            )
                         continue
 
-                    repo = InverterPowerRepository(db)
                     latest = repo.get_latest_for_inverter(inverter_id)
 
                     if latest:
@@ -130,23 +178,31 @@ async def fetch_inverter_production_async():
 
                     current_value = round(float(active_power), 2)
 
-                    if latest_value is not None and latest_value == current_value:
-                        logger.info(
-                            f"[Worker] Skipping DB save for inverter {serial}: power unchanged ({current_value})"
-                        )
-                    else:
-                        repo.create_record(inverter_id, current_value)
+                    change_time = datetime.now(timezone.utc)
+
+                    if latest_value is not None and latest_value != current_value:
+                        repo.create_record(inverter_id, latest_value, timestamp=change_time)
+
+                    should_persist = latest_value is None or latest_value != current_value
+
+                    if should_persist:
+                        repo.create_record(inverter_id, current_value, timestamp=change_time)
                         logger.info(
                             f"[Worker] Saved new power record for inverter {serial}: {current_value}"
                         )
 
-                    event = InverterEvent(
-                        inverter_id=inverter_id,
-                        serial_number=serial,
-                        active_power=current_value,
-                        status="updated",
-                    )
-                    await publish_inverter_event(event)
+                        payload = InverterEventPayload(
+                            inverter_id=inverter_id,
+                            serial_number=serial,
+                            active_power=current_value,
+                            status="updated",
+                            timestamp=change_time,
+                        )
+                        await publish_inverter_event(payload)
+                    else:
+                        logger.info(
+                            f"[Worker] Power unchanged for inverter {serial}: {current_value}; plateau extended"
+                        )
 
     except Exception as e:
         logger.exception(f"[Worker] Fatal worker error: {e}")

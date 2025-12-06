@@ -3,9 +3,11 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from app.constans.events import EventType
+from app.events.device_events import BaseEvent
 
-class InverterEvent(BaseModel):
 
+class InverterEventPayload(BaseModel):
     inverter_id: int = Field(..., description="ID inwertera z bazy")
     serial_number: str = Field(..., description="Numer seryjny inwertera z bazy SQLA")
 
@@ -29,3 +31,8 @@ class InverterEvent(BaseModel):
             datetime: lambda v: v.isoformat(),
         }
     }
+
+
+class InverterEvent(BaseEvent):
+    event_type: EventType = Field(default=EventType.POWER_READING)
+    payload: InverterEventPayload

@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from app.events.event_dispatcher import EventDispatcher
 from app.nats.client import NatsClient
 from app.nats.listener import NatsListener
 from app.nats.publisher import NatsPublisher
@@ -18,6 +19,7 @@ class NatsModule:
         self.client = NatsClient()
         self.publisher = NatsPublisher(self.client)
         self.listener = NatsListener(self.client)
+        self.events = EventDispatcher(self.publisher)
         self.create_stream = create_stream
 
     async def _ensure_stream(self):

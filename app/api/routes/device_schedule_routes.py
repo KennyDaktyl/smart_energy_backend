@@ -25,6 +25,7 @@ schedule_repo = DeviceScheduleRepository()
     dependencies=[Depends(require_role(UserRole.ADMIN))],
 )
 def list_all_schedules(db: Session = Depends(get_db)):
+    logger.info("GET /devices/schedules (admin)")
     return schedule_repo.get_all(db)
 
 
@@ -34,6 +35,7 @@ def list_device_schedules(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    logger.info("GET /devices/schedules/device/%s user_id=%s", device_id, current_user.id)
     return schedule_repo.get_for_device(db, device_id, current_user.id)
 
 
@@ -44,7 +46,7 @@ def create_schedule(
     current_user: User = Depends(get_current_user),
 ):
     schedule: DeviceSchedule = schedule_repo.create(db, payload.model_dump())
-    logger.info(f"✅ Schedule created for device {schedule.device_id}")
+    logger.info("Schedule created device_id=%s user_id=%s", schedule.device_id, current_user.id)
     return schedule
 
 
@@ -61,6 +63,7 @@ def update_schedule(
     if not schedule:
         raise HTTPException(status_code=404, detail="Schedule not found")
 
+    logger.info("Schedule updated id=%s", schedule_id)
     return schedule
 
 
@@ -74,4 +77,5 @@ def delete_schedule(
     if not deleted:
         raise HTTPException(status_code=404, detail="Schedule not found")
 
+    logger.info("Schedule deleted id=%s", schedule_id)
     return {"message": "Schedule deleted successfully"}

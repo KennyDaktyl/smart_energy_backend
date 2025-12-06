@@ -11,7 +11,7 @@ class InverterPowerRecord(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     inverter_id = Column(Integer, ForeignKey("inverters.id", ondelete="CASCADE"), nullable=False)
-    active_power = Column(Numeric(10, 2), nullable=False)
+    active_power = Column(Numeric(10, 2), nullable=True)
     timestamp = Column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )

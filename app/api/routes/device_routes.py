@@ -1,6 +1,7 @@
 # app/api/routes/device_routes.py
 
 from datetime import datetime, timezone
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
@@ -17,17 +18,20 @@ from app.schemas.device_schema import DeviceCreate, DeviceUpdate
 from app.services.device_service import DeviceService
 
 router = APIRouter(prefix="/devices", tags=["Devices"])
+logger = logging.getLogger(__name__)
 
 device_service = DeviceService(DeviceRepository(), NatsPublisher(NatsClient()))
 
 
 @router.get("/", dependencies=[Depends(require_role(UserRole.ADMIN))])
 def list_devices(db: Session = Depends(get_db)):
+    logger.info("GET /devices (admin)")
     return device_service.list_all(db)
 
 
 @router.get("/me")
 def list_my_devices(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    logger.info("GET /devices/me user_id=%s", current_user.id)
     return device_service.list_for_user(db, current_user.id)
 
 
@@ -35,6 +39,7 @@ def list_my_devices(db: Session = Depends(get_db), current_user: User = Depends(
 def get_device(
     device_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
+    logger.info("GET /devices/%s user_id=%s", device_id, current_user.id)
     return device_service.get_device(db, device_id, current_user)
 
 
@@ -44,6 +49,7 @@ async def create_device(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    logger.info("POST /devices user_id=%s", current_user.id)
     data = payload.model_dump()
     data["user_id"] = current_user.id
     return await device_service.create_device(db, data)
@@ -56,6 +62,7 @@ async def update_device(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    logger.info("PUT /devices/%s user_id=%s", device_id, current_user.id)
     data = payload.model_dump(exclude_unset=True)
     data["last_update"] = datetime.now(timezone.utc)
     return await device_service.update_device(db, device_id, current_user.id, data)
@@ -65,6 +72,7 @@ async def update_device(
 async def delete_device(
     device_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)
 ):
+    logger.info("DELETE /devices/%s user_id=%s", device_id, current_user.id)
     await device_service.delete_device(db, device_id, current_user)
     return Response(status_code=204)
 
@@ -79,6 +87,7 @@ async def set_manual_state(
     if "state" not in payload:
         raise HTTPException(400, "Missing 'state' field")
 
+    logger.info("PATCH /devices/%s/manual_state user_id=%s", device_id, current_user.id)
     return await device_service.set_manual_state(db, device_id, current_user, payload["state"])
 
 
