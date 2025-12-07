@@ -209,7 +209,7 @@ class DeviceService:
         self.logger.info(
             "Manual state updated device_id=%s user_id=%s state=%s",
             updated_device.id,
-            current_user.id,
+            user_id_val,
             state,
         )
 
