@@ -17,7 +17,6 @@ class DeviceEventRepository:
         power_kw: float | None = None,
         timestamp: datetime | None = None,
     ) -> DeviceEvent:
-        # Persist a state-change event emitted by agent telemetry
         event = DeviceEvent(
             device_id=device_id,
             state="ON" if pin_state else "OFF",

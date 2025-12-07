@@ -173,7 +173,7 @@ class DeviceService:
                 event_type=EventType.DEVICE_COMMAND,
                 payload={"device_id": device.id, "command": "SET_STATE", "is_on": bool(state)},
                 predicate=lambda p: p.get("device_id") == device.id,
-                timeout=4.0,
+                timeout=10.0,
             )
             logging.info(
                 "Manual state set ack received device_id=%s user_id=%s state=%s ack=%s",
