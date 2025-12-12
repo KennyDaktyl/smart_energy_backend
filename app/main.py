@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
     nats_module.init_app(app)
 
     try:
-        # start_inverter_scheduler()
+        start_inverter_scheduler()
         logger.info("Inverter scheduler started successfully.")
     except Exception as e:
         logger.exception(f"Failed to start inverter scheduler: {e}")
